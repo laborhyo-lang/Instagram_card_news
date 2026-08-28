@@ -33,7 +33,7 @@ import json
 # 최신 버전은 https://developers.facebook.com/docs/graph-api/changelog 에서 확인 후
 # 필요시 아래 값을 갱신하세요.
 GRAPH_API_VERSION = os.environ.get("GRAPH_API_VERSION", "v22.0")
-GRAPH_API_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
+GRAPH_API_BASE = f"https://graph.instagram.com/{GRAPH_API_VERSION}"
 
 POLL_INTERVAL_SECONDS = 3
 POLL_MAX_ATTEMPTS = 20
