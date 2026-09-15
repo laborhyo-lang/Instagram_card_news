@@ -43,8 +43,12 @@ def api_post(path, params):
     url = f"{GRAPH_API_BASE}/{path}"
     data = urllib.parse.urlencode(params).encode("utf-8")
     req = urllib.request.Request(url, data=data, method="POST")
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        print("Meta API 오류 응답:", e.read().decode())
+        raise
 
 
 def api_get(path, params):
