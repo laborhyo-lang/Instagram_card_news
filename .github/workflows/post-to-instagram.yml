@@ -39,15 +39,28 @@ jobs:
         id: resolve
         run: |
           if [ -n "${{ inputs.post_name }}" ]; then
-            echo "post_name=${{ inputs.post_name }}" >> "$GITHUB_OUTPUT"
+            POST_NAME="${{ inputs.post_name }}"
+            # 수동 실행은 사용자가 직접 요청한 것이므로 항상 게시 시도
+            READY=true
           else
             # push 트리거인 경우, 변경된 파일 경로에서 폴더명을 자동 추출
             CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- instagram-posts/pending/ | head -n 1)
             POST_NAME=$(echo "$CHANGED" | awk -F'/' '{print $3}')
-            echo "post_name=$POST_NAME" >> "$GITHUB_OUTPUT"
+            # caption.txt와 이미지가 모두 준비됐을 때만 게시
+            # (웹에서 파일을 나눠 올리면, 파일을 다 올리기 전에 워크플로우가 실행되는 것을 방지)
+            IMG_COUNT=$(ls "instagram-posts/pending/$POST_NAME" 2>/dev/null | grep -ciE '\.(png|jpg|jpeg)$' || true)
+            if [ -f "instagram-posts/pending/$POST_NAME/caption.txt" ] && [ "$IMG_COUNT" -gt 0 ]; then
+              READY=true
+            else
+              READY=false
+              echo "아직 게시 준비가 안 됐습니다 (caption.txt 또는 이미지 대기 중): $POST_NAME — 이번 실행은 건너뜁니다."
+            fi
           fi
+          echo "post_name=$POST_NAME" >> "$GITHUB_OUTPUT"
+          echo "ready=$READY" >> "$GITHUB_OUTPUT"
 
       - name: 인스타그램 게시 실행
+        if: ${{ steps.resolve.outputs.ready == 'true' }}
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
@@ -57,7 +70,7 @@ jobs:
             ${{ (inputs.dry_run == true) && '--dry-run' || '' }}
 
       - name: 게시 완료된 폴더를 posted/ 로 이동 후 커밋
-        if: ${{ inputs.dry_run != true }}
+        if: ${{ inputs.dry_run != true && steps.resolve.outputs.ready == 'true' }}
         run: |
           POST_NAME="${{ steps.resolve.outputs.post_name }}"
           mkdir -p instagram-posts/posted
